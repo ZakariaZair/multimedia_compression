@@ -1,2 +1,3 @@
 .clangd
 out
+.DS_Store
