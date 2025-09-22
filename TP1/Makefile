@@ -1,5 +1,7 @@
-TARGET := src/main.cpp
+TARGET := src/main.cpp src/explorer.cpp
+INC = -I./src
+
 
 all: ${TARGET}
-	clang++ ${TARGET} -o out/out
+	g++ ${INC} ${TARGET} -o out/out
 	./out/out
