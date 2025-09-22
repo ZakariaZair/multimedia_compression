@@ -21,13 +21,18 @@ int Explorer::explore(const char* filename) {
     }
 
     int character;
-    while((character = getc(filePtr)) != EOF) frequency_[static_cast<char>(character)]++;
+    while((character = getc(filePtr)) != EOF) {
+        unsigned char b = static_cast<unsigned char>(character);
+        if (b < 32 || b == 127) continue;
+        if (b > 126) continue;
+        frequency_[b]++;
+    }
+    fclose(filePtr);
     currentFilename_ = filename;
     fCount_++;
     return 0;
 }
 
-#include <filesystem>
 
 int Explorer::draw() {
     if (frequency_.empty()) {
@@ -35,38 +40,33 @@ int Explorer::draw() {
         return 1;
     }
 
+    printf("LOG   > drawing out/histogram_%d.png\n", fCount_);
     FILE* gp = popen("gnuplot", "w");
     if (!gp) { std::cerr << "gnuplot not working\n"; return 1; }
 
-    // Clean state every time
     fprintf(gp, "reset session\n");
     fprintf(gp, "unset multiplot\n");
     fprintf(gp, "set encoding utf8\n");
 
-    // Write to file
     fprintf(gp, "set terminal pngcairo size 800,600 noenhanced font 'Arial,10'\n");
     fprintf(gp, "set output 'out/histogram_%d.png'\n", fCount_);
 
-    // Style
     fprintf(gp, "set style data histograms\n");
     fprintf(gp, "set style fill solid 1.0 border -1\n");
     fprintf(gp, "set boxwidth 0.8\n");
     fprintf(gp, "set yrange [0:*]\n");
 
-    // Use double quotes for title to avoid issues if filename has apostrophes
     fprintf(gp, "set title \"Histogram - %s\"\n", currentFilename_);
     fprintf(gp, "set xlabel 'Category'\n");
     fprintf(gp, "set ylabel 'Frequency'\n");
-    fprintf(gp, "set xtics font ',7' rotate by -45 offset 0,-0.5\n");
+    fprintf(gp, "set xtics font ',7' offset 0,-0.5\n");
 
-    // Data: col1=label (string), col2=value
     fprintf(gp, "plot '-' using 2:xtic(1) with histograms title 'Data'\n");
     for (auto it = frequency_.begin(); it != frequency_.end(); ++it) {
         fprintf(gp, "'%c' %d\n", it->first, it->second);
     }
     fprintf(gp, "e\n");
 
-    // Finish file cleanly
     fprintf(gp, "unset output\n");
     fflush(gp);
     pclose(gp);
